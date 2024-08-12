@@ -5,6 +5,8 @@
 #include "Imgui.h"
 #include "systems/ParticleRenderSystem.h"
 #include "systems/ParticleSystem.h"
+#include "systems/MeshRenderSystem.h"
+#include "ResourceManager.h"
 #include <descriptors/DescriptorWriter.h>
 
 #include <GLFW/glfw3.h>
@@ -15,6 +17,8 @@
 #include <iostream>
 
 namespace engine {
+
+
 
     Application::Application() {
         mGlobalPool = DescriptorPool::Builder(mDevice)
@@ -62,44 +66,43 @@ namespace engine {
         };
 
         const auto player = m_registry.create();
+        m_registry.emplace<component::entity_info>(player, "Player");
         m_registry.emplace<component::Camera>(player);
         m_registry.emplace<component::Controller>(player, mWindow, controlls);
-        m_registry.emplace<component::transform>(player, glm::vec3(0), glm::vec3(1), glm::vec3(0));
+        m_registry.emplace<component::transform>(player, glm::vec3(0, -2, -2), glm::vec3(1), glm::vec3(-0.2, 0, 0));
 
+        auto &transform = m_registry.get<component::transform>(player);
+        m_registry.get<component::Camera>(player).SetViewYXZ(transform.translation, transform.rotation);
 
-        ParticleSystem particleSystem{mDevice,
+        ResourceManager resourceManager{mDevice};
+        resourceManager.importModel("../model/sphere.obj");
+        resourceManager.importModel("../model/cube.obj");
+
+        const auto ground = m_registry.create();
+        m_registry.emplace<component::entity_info>(ground, "Ground");
+        m_registry.emplace<std::shared_ptr<Model>>(ground, resourceManager.getModel("../model/cube.obj"));
+        m_registry.emplace<component::transform>(ground, glm::vec3(0), glm::vec3(1, 1, 100), glm::vec3(0));
+
+        const auto car = m_registry.create();
+        m_registry.emplace<component::entity_info>(car, "Car");
+        m_registry.emplace<std::shared_ptr<Model>>(car, resourceManager.getModel("../model/cube.obj"));
+        m_registry.emplace<component::transform>(car, glm::vec3(0, -1.05, 1), glm::vec3(0.2, 0.1, 0.5), glm::vec3(0));
+
+        MeshRenderSystem renderSystem{mDevice,
                                       mRenderer.GetSwapChainRenderPass(),
                                       globalSetLayout->getDescriptorSetLayout(),
-                                      50,
-                                      2};
-
-        const auto p1 = m_registry.create();
-        m_registry.emplace<Particle>(p1, glm::vec3(1, 0, 0), glm::vec4(0.9, 0.2, 0.2, 1), 0.05);
-        m_registry.emplace<component::physics>(p1, glm::vec3(0, 0, 0), 1.0f, true);
-
-        const auto box = m_registry.create();
-        m_registry.emplace<Box>(box, glm::vec3(0), glm::vec3(0.5));
+                                      "../shader/mesh.vert.spv",
+                                      "../shader/mesh.frag.spv"};
 
         m_backgroundColor = glm::vec3(0.3f, 0.5f, 1.0f);
         mRenderer.SetClearColor(m_backgroundColor);
 
         auto currentTime = std::chrono::high_resolution_clock::now();
 
-        glm::vec3 p_position{0};
-        glm::vec3 p_velocity{frand(-0.5, 0.5), frand(-0.5, 0.5), frand(-0.5, 0.5)};
-        glm::vec4 p_color{frand(0, 1), frand(0, 1), frand(0, 1), 1};
-        float p_radius{0.05};
-        float p_mass{1};
-        bool p_static{false};
-
         glm::vec2 prevCursorPosition = mWindow.getCursorPosition();
 
         std::shared_ptr<Texture> texture;
         VkDescriptorSet textureID{VK_NULL_HANDLE};
-
-        ImVec2 particlesSize{500, 0};
-        ImVec2 settingsSize{600, 700};
-        ImVec2 boxesSize{600, 700};
 
         bool inViewport{false};
 
@@ -136,20 +139,19 @@ namespace engine {
                 uboBuffers[frameIndex]->writeToBuffer(&ubo);
                 uboBuffers[frameIndex]->flush();
 
-                particleSystem.Update(frameInfo);
 
-                if (inViewport) {
-                  m_registry.view<component::Camera, component::Controller,component::transform>()
-                      .each([&](auto &camera, auto &controller, auto &transform) {
-                            controller.update(transform.translation, transform.rotation, frameTime);
-                            camera.SetViewYXZ(transform.translation, transform.rotation);
-                          });
-                }
+//                if (inViewport && mWindow.isMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
+//                  m_registry.view<component::Camera, component::Controller,component::transform>()
+//                      .each([&](auto &camera, auto &controller, auto &transform) {
+//                            controller.update(transform.translation, transform.rotation, frameTime);
+//                            camera.SetViewYXZ(transform.translation, transform.rotation);
+//                          });
+//                }
 
                 // render
                 mRenderer.BeginSwapChainRenderPass(commandBuffer);
                 {
-                    particleSystem.Render(frameInfo);
+                    renderSystem.Render(frameInfo);
                 }
                 mRenderer.EndSwapChainRenderPass(commandBuffer);
 
@@ -167,29 +169,28 @@ namespace engine {
                 }
                 ImGui::End();
 
-                ImGui::Begin("Entities");
+                ImGui::Begin("Models");
                 {
-                    int32_t i{0};
-                    m_registry.view<component::transform>().each([&](auto &transform) {
-                      ImGui::PushID(i++);
-                      if (ImGui::TreeNode(("Entity " + std::to_string(i)).c_str())){
-                        ImGui::DragFloat3("Position", &transform.translation.x);
-                        ImGui::DragFloat3("Rotation", &transform.rotation.x);
-                        ImGui::TreePop();
-                      }
-                      ImGui::PopID();
-                    });
+                    auto names = resourceManager.getModelNames();
+                    for (int32_t i = 0; i < names.size(); ++i) {
+                        ImGui::PushID(i);
+                        ImGui::Text(names[i].c_str());
+                        ImGui::PopID();
+                    }
                 }
                 ImGui::End();
 
-                ImGui::SetNextWindowPos({(float)mWindow.width() - boxesSize.x, settingsSize.y});
-                ImGui::SetNextWindowSize({boxesSize.x, boxesSize.y});
-                ImGui::Begin("Boxes");
+                ImGui::Begin("Entities");
                 {
-                    m_registry.view<Box>().each([&](auto e, auto &box) {
-                      ImGui::PushID((int32_t)e);
-                      ImGui::DragFloat3("Position", &box.position.x, 0.05);
-                      ImGui::DragFloat3("Half Extent", &box.halfExtent.x, 0.05);
+                    int32_t i{0};
+                    m_registry.view<component::entity_info, component::transform>().each([&](auto &info, auto &transform) {
+                      ImGui::PushID(i++);
+                      if (ImGui::TreeNode(info.name.c_str())){
+                        ImGui::DragFloat3("Position", &transform.translation.x);
+                        ImGui::DragFloat3("Scale", &transform.scale.x);
+                        ImGui::DragFloat3("Rotation", &transform.rotation.x);
+                        ImGui::TreePop();
+                      }
                       ImGui::PopID();
                     });
                 }

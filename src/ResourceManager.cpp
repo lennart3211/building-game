@@ -30,5 +30,13 @@ VkDescriptorSet ResourceManager::getTexture(const std::string &filepath) {
 
 }
 
+    std::vector<std::string> ResourceManager::getModelNames() const {
+        std::vector<std::string> names;
+        for (const auto & m_model : m_models) {
+            names.push_back(m_model.first);
+        }
+        return names;
+    }
+
 
 } // engine

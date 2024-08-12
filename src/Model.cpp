@@ -104,9 +104,9 @@ namespace engine {
     }
 
     void Model::Bind(VkCommandBuffer commandBuffer) {
-        VkBuffer buffers[] = {m_VertexBuffer->getBuffer(), m_instanceBuffer->getBuffer()};
-        VkDeviceSize offsets[] = {0, 0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 2, buffers, offsets);
+        VkBuffer buffers[] = {m_VertexBuffer->getBuffer()};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
 
         if (m_HasIndexBuffer) {
             vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
@@ -141,57 +141,6 @@ namespace engine {
             mMaxExtent.y = std::max(mMaxExtent.y, vertices[i].position.y);
             mMaxExtent.z = std::max(mMaxExtent.z, vertices[i].position.z);
         }
-    }
-
-    void Model::CreateInstanceBuffer(const std::vector<component::transform> &instances) {
-        VkDeviceSize bufferSize = sizeof(component::transform) * instances.size();
-
-        assert(bufferSize > 0 && "Buffer size cannot be zero");
-
-        Buffer stagingBuffer{m_device,
-                             bufferSize,
-                             1,
-                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        };
-
-        stagingBuffer.map();
-        stagingBuffer.writeToBuffer((void *) instances.data());
-
-        m_instanceBuffer = std::make_unique<Buffer>(m_device,
-                                                    sizeof(component::transform), instances.size(),
-                                                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        );
-        m_device.copyBuffer(stagingBuffer.getBuffer(), m_instanceBuffer->getBuffer(), bufferSize);
-
-    }
-
-    void Model::SetInstances(std::vector<component::transform> &instances) {
-        if (instances.size() <= m_maxInstances && instances.size() > m_maxInstances / 2 || !m_instanceBuffer) {
-            CreateInstanceBuffer(instances);
-            m_maxInstances = instances.size();
-        } else {
-            UpdateInstanceBuffer(instances);
-        }
-    }
-
-    void Model::UpdateInstanceBuffer(const std::vector<component::transform> &instances) {
-        VkDeviceSize bufferSize = sizeof(component::transform) * instances.size();
-
-        assert(bufferSize > 0 && "Buffer size cannot be zero");
-
-        Buffer stagingBuffer{m_device,
-                             bufferSize,
-                             1,
-                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        };
-
-        stagingBuffer.map();
-        stagingBuffer.writeToBuffer((void *) instances.data());
-
-        m_device.copyBuffer(stagingBuffer.getBuffer(), m_instanceBuffer->getBuffer(), bufferSize);
     }
 
     std::vector<VkVertexInputBindingDescription> Model::Vertex::getBindingsDescriptions() {
@@ -249,13 +198,13 @@ namespace engine {
                         };
                     }
 
-//                    if (index.normal_index >= 0) {
-//                        vertex.normal = {
-//                                attrib.normals[3 * index.normal_index + 0],
-//                                attrib.normals[3 * index.normal_index + 1],
-//                                attrib.normals[3 * index.normal_index + 2]
-//                        };
-//                    }
+                    if (index.normal_index >= 0) {
+                        vertex.normal = {
+                                attrib.normals[3 * index.normal_index + 0],
+                                attrib.normals[3 * index.normal_index + 1],
+                                attrib.normals[3 * index.normal_index + 2]
+                        };
+                    }
 
                     if (index.texcoord_index >= 0) {
                         vertex.uv = {

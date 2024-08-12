@@ -31,11 +31,6 @@ namespace engine {
             }
         };
 
-        struct Instance {
-            component::transform transform;
-            VkDescriptorSet texture;
-        };
-
         struct Builder {
             std::vector<Vertex> vertices{};
             std::vector<uint32_t> indices{};
@@ -53,8 +48,6 @@ namespace engine {
 
         static std::unique_ptr<Model> CreateModelFromFile(Device &device, const std::string &filepath);
 
-        void SetInstances(std::vector<component::transform> &instances);
-
         void Bind(VkCommandBuffer commandBuffer);
 
         void Draw(VkCommandBuffer commandBuffer) const;
@@ -67,9 +60,6 @@ namespace engine {
         void CreateVertexBuffers(const std::vector<Vertex> &vertices);
 
         void CreateIndexBuffer(const std::vector<uint32_t> &indices);
-
-        void CreateInstanceBuffer(const std::vector<component::transform> &instances);
-        void UpdateInstanceBuffer(const std::vector<component::transform> &instances);
 
         void FindMinMaxExtent(const std::vector<Vertex> &vertices);
 

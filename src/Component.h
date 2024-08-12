@@ -7,6 +7,7 @@
 
 #include <glm/trigonometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <string>
 #include "glm/vec3.hpp"
 
 namespace engine::component {
@@ -31,6 +32,10 @@ namespace engine::component {
 
       [[nodiscard]] glm::mat4 mat4() const;
       [[nodiscard]] glm::mat3 normalMatrix() const;
+    };
+
+    struct entity_info {
+        std::string name;
     };
 
 } // namespace engine::component

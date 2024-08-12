@@ -19,6 +19,8 @@ namespace engine {
        std::unordered_map<std::string, std::shared_ptr<Model>> m_models;
        std::unordered_map<std::string, VkDescriptorSet> m_textures;
 
+       std::unique_ptr<DescriptorPool> m_texturePool{};
+
     public:
        explicit ResourceManager(Device &device);
 
@@ -27,6 +29,8 @@ namespace engine {
 
        void importTexture(const std::string &filepath);
        VkDescriptorSet getTexture(const std::string &filepath);
+
+       std::vector<std::string> getModelNames() const;
     };
 
 } // engine

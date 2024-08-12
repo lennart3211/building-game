@@ -5,7 +5,8 @@
 namespace engine {
 
 struct SimplePushConstantsData {
-  glm::mat3 modelMatrix{1.0f};
+  glm::mat4 modelMatrix{1.0f};
+  glm::mat4 normalMatrix{1.0f};
 };
 
 MeshRenderSystem::MeshRenderSystem(Device &device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout, const std::string &vertPath, const std::string &fragPath)
@@ -19,30 +20,31 @@ MeshRenderSystem::~MeshRenderSystem() {
 }
 
 void MeshRenderSystem::Render(FrameInfo &frameInfo) {
-  m_pipeline->bind(frameInfo.commandBuffer);
+    m_pipeline->bind(frameInfo.commandBuffer);
 
-  vkCmdBindDescriptorSets(
-      frameInfo.commandBuffer,
-      VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_pipelineLayout,
-      0,
-      frameInfo.descriptorSets.size(),
-      frameInfo.descriptorSets.data(),
-      0,
-      nullptr
-  );
-
-  frameInfo.registry.view<Model, Model::Instance>().each([&](auto &model, auto &instance) { // may need to be ptr to model
     vkCmdBindDescriptorSets(
-        frameInfo.commandBuffer,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        m_pipelineLayout,
-        0,1,
-        &instance.texture,
-        0,nullptr
+            frameInfo.commandBuffer,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            m_pipelineLayout,
+            0,
+            frameInfo.descriptorSets.size(),
+            frameInfo.descriptorSets.data(),
+            0,
+            nullptr
     );
-    model.Bind(frameInfo.commandBuffer);
-    model.Draw(frameInfo.commandBuffer);
+
+    frameInfo.registry.view<std::shared_ptr<Model>, component::transform>().each([&](auto &model, auto &transform) {
+
+      SimplePushConstantsData push{};
+      push.modelMatrix = transform.mat4();
+      push.normalMatrix = transform.normalMatrix();
+
+      vkCmdPushConstants(frameInfo.commandBuffer, m_pipelineLayout,
+                         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                         sizeof(SimplePushConstantsData), &push);
+
+      model->Bind(frameInfo.commandBuffer);
+      model->Draw(frameInfo.commandBuffer);
   });
 }
 
@@ -139,8 +141,8 @@ void MeshRenderSystem::CreatePipeline(VkRenderPass renderPass,
   pipelineConfig.dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(pipelineConfig.dynamicStateEnables.size());
   pipelineConfig.dynamicStateInfo.flags = 0;
 
-  pipelineConfig.bindingDescriptions = Mesh::Vertex::getBindingsDescriptions();
-  pipelineConfig.attributeDescriptions = Mesh::Vertex::getAttributeDescriptions();
+  pipelineConfig.bindingDescriptions = Model::Vertex::getBindingsDescriptions();
+  pipelineConfig.attributeDescriptions = Model::Vertex::getAttributeDescriptions();
   pipelineConfig.renderPass = renderPass;
   pipelineConfig.pipelineLayout = m_pipelineLayout;
 

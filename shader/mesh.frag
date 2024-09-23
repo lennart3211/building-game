@@ -10,14 +10,16 @@ layout(set = 0, binding = 0) uniform GlobalUbo {
     vec4 ambientLightColor;
 } ubo;
 
+layout(set = 1, binding = 0) uniform sampler2D  uTexture;
+
 layout(push_constant) uniform Push {
     mat4 modelMatrix;
     mat4 normaMatrix;
+    uint textureIndex;
 } push;
 
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec3 normalColor = fragNormalWorld * 0.5 + 0.5;  // Transform from [-1,1] to [0,1]
-    outColor = vec4(normalColor, 1.0);
+    outColor = texture(uTexture, fragUV);
 }

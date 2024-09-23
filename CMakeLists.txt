@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 3.11.0)
 set(NAME game-engine)
 set(CMAKE_CXX_STANDARD 17)
 
+
+
 message(STATUS "using ${CMAKE_GENERATOR}")
 if (CMAKE_GENERATOR STREQUAL "MinGW Makefiles")
     if (NOT MINGW_PATH)
@@ -81,15 +83,20 @@ if (NOT TINYOBJ_PATH)
     set(TINYOBJ_PATH external/tinyobjloader)
 endif()
 
-file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/engine/*.cpp)
 file(GLOB_RECURSE IMGUI_SOURCES ${PROJECT_SOURCE_DIR}/external/imgui/*.cpp)
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES}
+        external/stb/stb_image.cpp
+        Editor.cpp
+        main.cpp)
 add_dependencies(${PROJECT_NAME} Shaders)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
+add_subdirectory(external/native_file_dialog)
+add_dependencies(${PROJECT_NAME} nfd)
 
 if (WIN32)
     message(STATUS "CREATING BUILD FOR WINDOWS")
@@ -104,7 +111,7 @@ if (WIN32)
     endif()
 
     target_include_directories(${PROJECT_NAME} PUBLIC
-            ${PROJECT_SOURCE_DIR}/src
+            ${PROJECT_SOURCE_DIR}/engine
             ${Vulkan_INCLUDE_DIRS}
             ${TINYOBJ_PATH}
             ${GLFW_INCLUDE_DIRS}
@@ -116,15 +123,18 @@ if (WIN32)
             ${GLFW_LIB}
     )
 
-    target_link_libraries(${PROJECT_NAME} glfw ${Vulkan_LIBRARIES} imm32)
+    target_link_libraries(${PROJECT_NAME} glfw ${Vulkan_LIBRARIES} imm32 nfd ole32 uuid shell32)
 elseif (UNIX)
     message(STATUS "CREATING BUILD FOR UNIX")
     target_include_directories(${PROJECT_NAME} PUBLIC
-            ${PROJECT_SOURCE_DIR}/src
+            ${PROJECT_SOURCE_DIR}/engine
             ${TINYOBJ_PATH}
     )
-    target_link_libraries(${PROJECT_NAME} glfw ${Vulkan_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME} glfw ${Vulkan_LIBRARIES} nfd)
 endif()
+
+set_target_properties(nfd PROPERTIES LINKER_LANGUAGE CXX)
+
 
 
 ############## Build SHADERS #######################
@@ -163,4 +173,5 @@ add_custom_target(
         Shaders
         DEPENDS ${SPIRV_BINARY_FILES}
 )
+
 

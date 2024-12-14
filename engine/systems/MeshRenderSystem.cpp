@@ -8,11 +8,12 @@ namespace engine {
 struct SimplePushConstantsData {
   glm::mat4 modelMatrix{1.0f};
   glm::mat4 normalMatrix{1.0f};
-  uint32_t textureIndex{0};
+  uint32_t colorIndex{0};
 };
 
 MeshRenderSystem::MeshRenderSystem(Device &device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout> &&descriptorSetLayouts, const std::string &vertPath, const std::string &fragPath)
     : m_device(device) {
+
   CreatePipelineLayout(descriptorSetLayouts);
   CreatePipeline(renderPass, vertPath, fragPath);
 }
@@ -21,10 +22,10 @@ MeshRenderSystem::~MeshRenderSystem() {
   vkDestroyPipelineLayout(m_device.device(), m_pipelineLayout, nullptr);
 }
 
+
 void MeshRenderSystem::Render(FrameInfo &frameInfo) {
   m_pipeline->bind(frameInfo.commandBuffer);
 
-  // Bind global descriptor sets
   vkCmdBindDescriptorSets(
       frameInfo.commandBuffer,
       VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -36,32 +37,41 @@ void MeshRenderSystem::Render(FrameInfo &frameInfo) {
       nullptr
   );
 
-  frameInfo.registry.view<std::shared_ptr<Model>, component::transform, component::material>().each(
-      [&](auto &model, auto &transform, auto &material) {
-        // Bind entity-specific texture descriptor set
-        vkCmdBindDescriptorSets(
-            frameInfo.commandBuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            m_pipelineLayout,
-            frameInfo.descriptorSets.size(), // Offset for entity-specific descriptor set
-            1, // Number of descriptor sets to bind
-            &material.descriptorSet,
-            0,
-            nullptr
-        );
+  for (auto &structure : frameInfo.structures) {
+    if (!structure) continue;
 
-        SimplePushConstantsData push{};
-        push.modelMatrix = transform.mat4();
-        push.normalMatrix = transform.normalMatrix();
+    VkDescriptorSet textureSet = frameInfo.resourceManager.getTexture(structure->type);
+    std::shared_ptr<Model> model = frameInfo.resourceManager.getModel(structure->type);
 
-        vkCmdPushConstants(frameInfo.commandBuffer, m_pipelineLayout,
-                           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                           sizeof(SimplePushConstantsData), &push);
 
-        model->Bind(frameInfo.commandBuffer);
-        model->Draw(frameInfo.commandBuffer);
-      }
-  );
+    vkCmdBindDescriptorSets(
+        frameInfo.commandBuffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        m_pipelineLayout,
+        frameInfo.descriptorSets.size(),
+        1,
+        &textureSet,
+        0,
+        nullptr
+    );
+
+    SimplePushConstantsData push{};
+    push.modelMatrix = structure->mat4();
+    push.normalMatrix = glm::identity<glm::mat4>();
+    push.colorIndex = structure->color;
+
+    vkCmdPushConstants(
+        frameInfo.commandBuffer,
+        m_pipelineLayout,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        0,
+        sizeof(SimplePushConstantsData),
+        &push);
+
+    model->Bind(frameInfo.commandBuffer);
+    model->Draw(frameInfo.commandBuffer);
+  }
+
 }
 
 void MeshRenderSystem::CreatePipelineLayout(std::vector<VkDescriptorSetLayout> &descriptorSetLayouts) {

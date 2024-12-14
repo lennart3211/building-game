@@ -6,6 +6,7 @@
 #include "Mesh.h"
 #include "Pipeline.h"
 #include "Rectangle.h"
+#include "ShadowRenderSystem.h"
 
 #include <memory>
 
@@ -16,6 +17,7 @@ private:
   Device &m_device;
   std::unique_ptr<Pipeline> m_pipeline;
   VkPipelineLayout m_pipelineLayout;
+
 
 public:
   MeshRenderSystem(Device &device, VkRenderPass renderPass, std::vector<VkDescriptorSetLayout> &&descriptorSetLayouts, const std::string &vertPath, const std::string &fragPath);

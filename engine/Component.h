@@ -28,9 +28,9 @@ namespace engine::component {
     };
 
     struct transform {
-      glm::vec3 translation{};
+      glm::vec3 translation{0};
       glm::vec3 scale{1.0f, 1.0f, 1.0f};
-      glm::vec3 rotation;
+      glm::vec3 rotation{0};
 
       [[nodiscard]] glm::mat4 mat4() const;
       [[nodiscard]] glm::mat3 normalMatrix() const;

@@ -5,6 +5,7 @@
 #include "descriptors/DescriptorPool.h"
 #include "descriptors/DescriptorSetLayout.h"
 
+#include "Structure.h"
 #include "TextureArray.h"
 #include "entt/entt.hpp"
 
@@ -26,10 +27,12 @@ namespace engine {
 
        bool importModel(const std::string &filepath);
        std::shared_ptr<Model> getModel(const std::string &filepath);
+       std::shared_ptr<Model> getModel(Structure::Type type);
        void deleteModel(const std::string &filepath);
 
        bool importTexture(const std::string &filepath);
        VkDescriptorSet getTexture(const std::string &filepath);
+       VkDescriptorSet getTexture(Structure::Type type);
        std::string getTextureName(VkDescriptorSet texture);
        std::vector<std::string> getTextureNames() const;
 

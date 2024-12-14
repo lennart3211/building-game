@@ -34,6 +34,13 @@ bool ResourceManager::importModel(const std::string &filepath) {
   return false;
 }
 
+std::shared_ptr<Model> ResourceManager::getModel(Structure::Type type) {
+  switch (type) {
+  case Structure::TYPE_1:
+    return getModel("structure_1.obj");
+  }
+}
+
 std::shared_ptr<Model> ResourceManager::getModel(const std::string &filepath) {
   return m_models[filepath];
 }
@@ -45,6 +52,13 @@ bool ResourceManager::importTexture(const std::string &filepath) {
       return true;
     }
     return false;
+}
+
+VkDescriptorSet ResourceManager::getTexture(Structure::Type type) {
+    switch (type) {
+    case Structure::TYPE_1:
+      return getTexture("structure_1.png");
+    }
 }
 
 VkDescriptorSet ResourceManager::getTexture(const std::string &filepath) {
